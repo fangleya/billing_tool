@@ -100,7 +100,6 @@ class MainWindow(QWidget):
             ("📁 分类管理", self.open_category),
             ("💳 账户管理", self.open_account),
             ("📤 导出 CSV", self.export_csv),
-            # ("🔒 加密编译", self.build_cython),
             ("❓ 关于", self.show_about),
         ]:
             btn = QPushButton(name)
@@ -348,25 +347,3 @@ class MainWindow(QWidget):
             for t in self.transactions:
                 writer.writerow([t.date, t.type, t.category, t.description, t.amount, t.account, t.tags, t.note])
         QMessageBox.information(self, "导出成功", f"数据已导出到：\n{path}")
-
-    # def build_cython(self):
-    #     import subprocess
-    #     self.btn_add.setEnabled(False)
-    #     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    #     try:
-    #         result = subprocess.run(
-    #             ["python", "build_cython.py"],
-    #             cwd=root,
-    #             capture_output=True, text=True, timeout=300,
-    #         )
-    #         output = result.stdout + result.stderr
-    #         if result.returncode == 0:
-    #             QMessageBox.information(self, "编译完成", output or "编译成功，产物已清理。")
-    #         else:
-    #             QMessageBox.warning(self, "编译失败", output or "未知错误")
-    #     except subprocess.TimeoutExpired:
-    #         QMessageBox.warning(self, "编译超时", "编译超过 5 分钟，已取消。")
-    #     except FileNotFoundError:
-    #         QMessageBox.warning(self, "错误", "未找到 build_cython.py 或 python 命令")
-    #     finally:
-    #         self.btn_add.setEnabled(True)
