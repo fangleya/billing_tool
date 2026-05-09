@@ -100,6 +100,7 @@ class MainWindow(QWidget):
             ("📁 分类管理", self.open_category),
             ("💳 账户管理", self.open_account),
             ("📤 导出 CSV", self.export_csv),
+            # ("🔒 加密编译", self.build_cython),
             ("❓ 关于", self.show_about),
         ]:
             btn = QPushButton(name)
@@ -168,9 +169,6 @@ class MainWindow(QWidget):
             with open("data/window_state.json", "r", encoding="utf-8") as f:
                 state = json.load(f)
             self.col_ratios = state.get("col_ratios")
-            # saved = state.get("col_ratios")
-            # if saved and len(saved) == 8:
-            #     self.col_ratios = [round(r, 3) for r in saved]
         except Exception:
             pass
 
@@ -193,19 +191,11 @@ class MainWindow(QWidget):
         QTimer.singleShot(0, self.adjust_column_widths)
 
     def closeEvent(self, event):
-        total_width = self.table.viewport().width()  # type: ignore
-        print(f"[closeEvent1] total_width={total_width}, col_ratios={self.col_ratios}")
-        # if total_width > 0:
-        #     self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
-        # self.col_ratios = [round(r, 3) for r in saved]
         os.makedirs("data", exist_ok=True)
-        total_width = self.table.viewport().width()  # type: ignore
-        print(f"[closeEvent2] total_width={total_width}, col_ratios={self.col_ratios}")
         rect = self.geometry().getRect()
         state = {
             "maximized": self.isMaximized(),
             "geometry": [rect[0], rect[1], rect[2], rect[3]],
-            # "col_ratios": [round(r, 3) for r in self.col_ratios],
             "col_ratios": self.col_ratios,
         }
         with open("data/window_state.json", "w", encoding="utf-8") as f:
@@ -277,17 +267,8 @@ class MainWindow(QWidget):
             self.table.setColumnWidth(i, int(total_width * ratio))
 
     def on_column_resized(self, index, old_size, new_size):
-        headers = ["日期", "类型", "分类", "描述", "金额", "账户", "标签", "备注"]
-        name = headers[index] if index < len(headers) else f"col{index}"
         total = self.table.viewport().width()  # type: ignore
-        pct = new_size / total * 100 if total > 0 else 0
         self.col_ratios = [round(self.table.columnWidth(i) / total, 3) for i in range(8)]
-        # total_width = self.table.viewport().width()  # type: ignore
-        # if total_width > 0:
-        #     self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
-        # self.col_ratios = [round(r, 3) for r in saved]
-        print(f"[columnResized] {name}[{index}]: {old_size} -> {new_size} ({pct:.1f}% of {total})")
-        print(f"  updated col_ratios: {self.col_ratios}")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -367,3 +348,25 @@ class MainWindow(QWidget):
             for t in self.transactions:
                 writer.writerow([t.date, t.type, t.category, t.description, t.amount, t.account, t.tags, t.note])
         QMessageBox.information(self, "导出成功", f"数据已导出到：\n{path}")
+
+    # def build_cython(self):
+    #     import subprocess
+    #     self.btn_add.setEnabled(False)
+    #     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    #     try:
+    #         result = subprocess.run(
+    #             ["python", "build_cython.py"],
+    #             cwd=root,
+    #             capture_output=True, text=True, timeout=300,
+    #         )
+    #         output = result.stdout + result.stderr
+    #         if result.returncode == 0:
+    #             QMessageBox.information(self, "编译完成", output or "编译成功，产物已清理。")
+    #         else:
+    #             QMessageBox.warning(self, "编译失败", output or "未知错误")
+    #     except subprocess.TimeoutExpired:
+    #         QMessageBox.warning(self, "编译超时", "编译超过 5 分钟，已取消。")
+    #     except FileNotFoundError:
+    #         QMessageBox.warning(self, "错误", "未找到 build_cython.py 或 python 命令")
+    #     finally:
+    #         self.btn_add.setEnabled(True)
