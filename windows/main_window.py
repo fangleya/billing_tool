@@ -86,6 +86,9 @@ class MainWindow(QWidget):
         self.transactions = []
         self.categories = ["餐饮", "购物", "交通", "工资", "娱乐", "其他"]
         self.accounts = ["微信", "支付宝", "现金", "银行卡"]
+        self.default_col_ratios = [0.10, 0.08, 0.08, 0.10, 0.10, 0.10, 0.16, 0.28]
+        self.col_ratios = list(self.default_col_ratios)
+        self._load_col_ratios()
         self.load_data()
 
         layout = QVBoxLayout(self)
@@ -158,6 +161,16 @@ class MainWindow(QWidget):
         # ⏱ 自动检查提醒事项
         self.check_reminders()
 
+    def _load_col_ratios(self):
+        try:
+            with open("data/window_state.json", "r", encoding="utf-8") as f:
+                state = json.load(f)
+            saved = state.get("col_ratios")
+            if saved and len(saved) == 8:
+                self.col_ratios = saved
+        except Exception:
+            pass
+
     def restore_window_state(self):
         try:
             with open("data/window_state.json", "r", encoding="utf-8") as f:
@@ -177,10 +190,14 @@ class MainWindow(QWidget):
 
     def closeEvent(self, event):
         os.makedirs("data", exist_ok=True)
+        total_width = self.table.viewport().width()  # type: ignore
+        if total_width > 0:
+            self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
         rect = self.geometry().getRect()
         state = {
             "maximized": self.isMaximized(),
             "geometry": [rect[0], rect[1], rect[2], rect[3]],
+            "col_ratios": self.col_ratios,
         }
         with open("data/window_state.json", "w", encoding="utf-8") as f:
             json.dump(state, f)
@@ -248,8 +265,7 @@ class MainWindow(QWidget):
 
     def adjust_column_widths(self):
         total_width = self.table.viewport().width()  # type: ignore
-        col_ratios = [0.10, 0.08, 0.08, 0.10, 0.10, 0.10, 0.16, 0.28]
-        for i, ratio in enumerate(col_ratios):
+        for i, ratio in enumerate(self.col_ratios):
             self.table.setColumnWidth(i, int(total_width * ratio))
 
     def resizeEvent(self, event):
