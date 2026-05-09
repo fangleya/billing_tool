@@ -36,7 +36,7 @@ class MainWindow(QWidget):
         palette.setColor(QPalette.HighlightedText, QColor("#ffffff"))
         QApplication.setPalette(palette)
 
-        self.setWindowTitle(" 本地记账工具v1.1")
+        self.setWindowTitle(" 本地记账工具v1.0")
         self.setWindowIcon(QIcon(os.path.join("resources", "appicon.ico")))
 
         self.setStyleSheet("""
@@ -205,7 +205,7 @@ class MainWindow(QWidget):
             "关于 💰 记账工具",
             "软件名称：本地记账工具\n"
             "功能简介：记录每日收支，支持图表分析、分类与账户管理、导出 CSV。\n"
-            "版本号：v1.1\n"
+            "版本号：v1.0\n"
             "作者：Thebzk  吾爱破解\n"
             "日期：2025年5月26日",
         )

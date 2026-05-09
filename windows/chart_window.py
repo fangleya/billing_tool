@@ -6,7 +6,7 @@ matplotlib.rcParams["axes.unicode_minus"] = False
 
 import matplotlib.pyplot as plt
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QHBoxLayout, QComboBox, QLineEdit
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas  # type: ignore
 from matplotlib.figure import Figure
 from datetime import datetime
 
@@ -69,7 +69,7 @@ class ChartWindow(QWidget):
                 key = t.category
                 categories[key] = categories.get(key, 0) + t.amount
         if categories:
-            ax1.pie(categories.values(), labels=categories.keys(), autopct="%.1f%%", startangle=140)
+            ax1.pie(categories.values(), labels=categories.keys(), autopct="%.1f%%", startangle=140)  # type: ignore
             ax1.set_title("分类支出比例")
         else:
             ax1.text(0.5, 0.5, "无支出数据", ha="center", va="center", fontsize=12)
