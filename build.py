@@ -205,8 +205,16 @@ def scan_project_dependencies():
     """扫描项目所有 .py，返回需要安装的 pip 包名集合"""
     needed = set()
     for py_file in glob.glob(os.path.join(ROOT, "**", "*.py"), recursive=True):
+        # 跳过构建脚本
+        if os.path.basename(py_file) in ("build.py", "build_cython.py"):
+            continue
         for imp in _scan_imports(py_file):
             if imp not in _get_stdlib_names():
+                # 跳过项目本地模块（ROOT 下存在同名目录或 .py 文件）
+                if os.path.isdir(os.path.join(ROOT, imp)) or os.path.isfile(
+                    os.path.join(ROOT, imp + ".py")
+                ):
+                    continue
                 needed.add(imp)
     return needed
 
@@ -419,7 +427,7 @@ def install_dependencies():
     # ── 逐个检查是否已安装，并获取版本 ──
     installed = {}
     missing = []
-    for import_name, pkg_name in sorted(set((IMPORT_TO_PIP.get(n, n.lower()), n) for n in all_needed)):
+    for pkg_name, import_name in sorted(set((IMPORT_TO_PIP.get(n, n.lower()), n) for n in all_needed)):
         try:
             mod = __import__(import_name)
             ver = getattr(mod, "__version__", "ok")
@@ -427,7 +435,6 @@ def install_dependencies():
         except (ImportError, ModuleNotFoundError):
             missing.append(pkg_name)
         except Exception:
-            # 有些包虽然能 import 但属性访问会报错，算已安装
             installed[pkg_name] = "?"
 
     # 去重 missing
@@ -481,10 +488,13 @@ def cython_compile():
         name = mod_path.replace("/", ".").replace("\\", ".").replace(".py", "")
         ext_modules.append(Extension(name, [os.path.join(BUILD_DIR, mod_path)]))
 
-    # 保存原始 argv 并伪造（setuptools 需要）
+    # 保存原始 argv/CWD 并伪造（setuptools 需要）
     old_argv = sys.argv
+    old_cwd = os.getcwd()
     sys.argv = ["setup.py", "build_ext", "--inplace"]
 
+    # 切换到 build_temp，让 --inplace 的 .pyd/.c 都落在 build_temp 内
+    os.chdir(BUILD_DIR)
     try:
         print(f"  正在编译 {len(ext_modules)} 个模块...")
         setup(
@@ -507,6 +517,7 @@ def cython_compile():
             sys.exit(1)
         return False
     finally:
+        os.chdir(old_cwd)
         sys.argv = old_argv
 
     # 编译产物 .pyd 在 build_temp 下；替换掉同目录的 .py
@@ -658,14 +669,15 @@ def pyinstaller_package():
         sys.executable,
         "-m",
         "PyInstaller",
+        "--paths",
+        BUILD_DIR,
         "--name",
         "记账工具",
         "--onefile",
         "--windowed",
-        "--noconsole",
+        "--console",
         "--clean",
         "--noconfirm",
-        "--strip",
         *icon_arg,
         *upx_flags,
         *exclude_args,
@@ -673,6 +685,7 @@ def pyinstaller_package():
         f"resources{os.pathsep}resources",
         "--add-data",
         f"data{os.pathsep}data",
+        *[h for m in PY_MODULES for h in ("--hidden-import", m.replace("/", ".").replace("\\", ".").replace(".py", ""))],
         "--hidden-import",
         "matplotlib.backends.backend_qt5agg",
         os.path.join(BUILD_DIR, "main.py"),

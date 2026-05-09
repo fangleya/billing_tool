@@ -33,7 +33,7 @@ class EditWindow(QWidget):
         btn.clicked.connect(self.save)
         layout.addWidget(btn)
 
-    def save(self):
+    def save(self, checked=False):
         try:
             t = Transaction(
                 date=self.date_edit.date().toString("yyyy-MM-dd"),

@@ -54,9 +54,52 @@ echo.
 
 "%PYTHON_EXE%" build.py
 
-if %errorlevel% neq 0 (
-    echo.
+set "BUILD_ERROR=%errorlevel%"
+
+:: ---- 清理打包中间文件 ----
+echo.
+echo ============================================================
+echo    Cleaning intermediate build files...
+echo ============================================================
+
+if exist "build_temp\" (
+    rmdir /s /q "build_temp" 2>nul
+    echo   Deleted: build_temp/
+)
+if exist "build\" (
+    rmdir /s /q "build" 2>nul
+    echo   Deleted: build/
+)
+if exist "dist\" (
+    rmdir /s /q "dist" 2>nul
+    echo   Deleted: dist/
+)
+for /d %%d in (*.egg-info) do (
+    rmdir /s /q "%%d" 2>nul
+    echo   Deleted: %%d/
+)
+for %%f in (*.spec) do (
+    del /f /q "%%f" 2>nul
+    echo   Deleted: %%~nxf
+)
+for /r /d %%d in (__pycache__) do (
+    if exist "%%d" (
+        rmdir /s /q "%%d" 2>nul
+    )
+)
+
+for /r %%f in (*.pyd) do (
+    del /f /q "%%f" 2>nul
+)
+for /r %%f in (*.c) do (
+    del /f /q "%%f" 2>nul
+)
+
+echo   Cleanup complete.
+echo.
+
+if %BUILD_ERROR% neq 0 (
     echo [ERROR] Build failed. See output above.
 )
 pause
-exit /b 0
+exit /b %BUILD_ERROR%

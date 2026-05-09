@@ -32,7 +32,7 @@ class AccountWindow(QWidget):
         for a in self.accounts:
             self.list_widget.addItem(QListWidgetItem(a))
 
-    def add_account(self):
+    def add_account(self, checked=False):
         name = self.input.text().strip()
         if not name:
             QMessageBox.warning(self, "提示", "请输入账户名称")
@@ -44,7 +44,7 @@ class AccountWindow(QWidget):
             self.input.clear()
             self.update_callback()
 
-    def delete_account(self):
+    def delete_account(self, checked=False):
         item = self.list_widget.currentItem()
         if item:
             name = item.text()

@@ -31,7 +31,7 @@ class CategoryWindow(QWidget):
         for c in self.categories:
             self.list_widget.addItem(QListWidgetItem(c))
 
-    def add_category(self):
+    def add_category(self, checked=False):
         name = self.input.text().strip()
         if not name:
             QMessageBox.warning(self, "提示", "请输入分类名称")
@@ -43,7 +43,7 @@ class CategoryWindow(QWidget):
             self.input.clear()
             self.update_callback()
 
-    def delete_category(self):
+    def delete_category(self, checked=False):
         item = self.list_widget.currentItem()
         if item:
             name = item.text()

@@ -47,7 +47,7 @@ class ChartWindow(QWidget):
 
         self.plot()
 
-    def plot(self):
+    def plot(self, _=None):
         account_filter = self.cmb_account.currentText()
         tag_keyword = self.txt_tag_filter.text().strip().lower()
 

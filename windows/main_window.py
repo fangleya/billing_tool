@@ -214,7 +214,7 @@ class MainWindow(QWidget):
         if messages:
             QMessageBox.information(self, "📅 今日提醒", "\n\n".join(messages))
 
-    def show_about(self):
+    def show_about(self, checked=False):
         QMessageBox.information(
             self,
             "关于 💰 记账工具",
@@ -225,7 +225,7 @@ class MainWindow(QWidget):
             "日期：2025年5月26日",
         )
 
-    def add_transaction(self):
+    def add_transaction(self, checked=False):
         try:
             t = Transaction(
                 date=self.date_edit.date().toString("yyyy-MM-dd"),
@@ -312,15 +312,15 @@ class MainWindow(QWidget):
         except:
             pass
 
-    def open_chart(self):
+    def open_chart(self, checked=False):
         self.chart_win = ChartWindow(self.transactions)
         self.chart_win.show()
 
-    def open_category(self):
+    def open_category(self, checked=False):
         self.cat_win = CategoryWindow(self.categories, self.update_categories)
         self.cat_win.show()
 
-    def open_account(self):
+    def open_account(self, checked=False):
         self.acc_win = AccountWindow(self.accounts, self.update_accounts)
         self.acc_win.show()
 
@@ -337,7 +337,7 @@ class MainWindow(QWidget):
         self.cmb_account.clear()
         self.cmb_account.addItems(self.accounts)
 
-    def export_csv(self):
+    def export_csv(self, checked=False):
         path, _ = QFileDialog.getSaveFileName(self, "导出为 CSV 文件", "账本.csv", "CSV 文件 (*.csv)")
         if not path:
             return
