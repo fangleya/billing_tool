@@ -675,7 +675,7 @@ def pyinstaller_package():
         "记账工具",
         "--onefile",
         "--windowed",
-        "--console",
+        "--noconsole",
         "--clean",
         "--noconfirm",
         *icon_arg,
