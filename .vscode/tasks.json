@@ -1,0 +1,29 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "批量编译PySide6 UI文件",
+            "type": "shell",
+            "command": "powershell",
+            "args": [
+                "-ExecutionPolicy",
+                "Bypass",
+                "-NoProfile",
+                "-Command",
+                "Get-ChildItem -Path '${workspaceFolder}\\src\\ui' -Recurse -Filter *.ui | ForEach-Object { $outputPath = Join-Path -Path $_.DirectoryName -ChildPath \"ui_$($_.BaseName).py\"; & 'E:/anaconda3/envs/env_python310/Scripts/pyside6-uic.exe' $_.FullName -o $outputPath --from-imports; Write-Host \"✅ 编译完成: $outputPath\" }"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [],
+            "detail": "递归编译src/ui下所有（含子文件夹）的.ui文件为ui_xxx.py",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared"
+            }
+        }
+    ]
+}

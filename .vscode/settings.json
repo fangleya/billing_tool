@@ -1,0 +1,51 @@
+{
+    // 保存时自动格式化
+    "editor.formatOnSave": true,
+    // 保存时自动修复代码（配合ESLint等插件，可选但推荐）
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "source.fixAll.eslint": "explicit" // 针对ESLint的自动修复
+    },
+    // 默认格式化工具（根据你的开发语言选择，比如Prettier）
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    // 启用自动格式化（防止被其他设置覆盖）
+    "editor.formatOnType": false, // 输入时不实时格式化（避免干扰）
+    "editor.formatOnPaste": true, // 粘贴时自动格式化
+    // 缩进配置（通用）
+    // "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.detectIndentation": true,
+    // 单独配置JSON文件的格式化规则
+    "[json]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.tabSize": 2,
+        "editor.formatOnSave": true,
+        "editor.detectIndentation": false /* 禁用自动检测缩进，强制用4空格 */
+    },
+    // 单独配置JavaScript/TypeScript
+    "[javascript]": {
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.formatOnSave": true
+    },
+    // Python基础配置（关联Anaconda虚拟环境）
+    "python.defaultInterpreterPath": "E:/anaconda3/envs/env_python39/python.exe",
+    "python.terminal.activateEnvironment": true, // 终端自动激活虚拟环境
+    "terminal.integrated.env.windows": {
+        "VSCODE_CONDA_ENV": "env_python39"
+    },
+    // 单独配置Python文件的格式化规则
+    "[python]": {
+        // "editor.defaultFormatter": "ms-python.python",
+        "editor.defaultFormatter": "ms-python.black-formatter", // 指定Black为格式化工具
+        "editor.tabSize": 4,
+        "editor.formatOnSave": true
+    },
+    "black-formatter.args": ["--line-length", "120"], // Black自定义参数（行长度）
+    // PyQt6 UI编译配置（pyuic6路径）
+    // "python.analysis.extraPaths": [
+    //     "${workspaceFolder}/src/ui" // 让VSCode识别编译后的UI文件
+    // ],
+    // 可选：关闭不必要的提示
+    "python.analysis.diagnosticMode": "workspace",
+    "python.analysis.autoImportCompletions": true
+}

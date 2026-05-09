@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "PyQt6-调试",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/main.py", // 项目入口文件
+            "console": "integratedTerminal",
+            "justMyCode": false, // 调试时可进入PyQt6源码（排错用）
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src" // 解决模块导入问题
+            }
+        }
+    ]
+}
