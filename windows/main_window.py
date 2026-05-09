@@ -16,7 +16,7 @@ from PyQt5.QtWidgets import (
     QApplication,
     QStyleFactory,
 )
-from PyQt5.QtCore import Qt, QDate, QPoint
+from PyQt5.QtCore import Qt, QDate, QPoint, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from models.transaction import Transaction
 from windows.chart_window import ChartWindow
@@ -85,7 +85,7 @@ class MainWindow(QWidget):
 
         self.transactions = []
         self.categories = ["餐饮", "购物", "交通", "工资", "娱乐", "其他"]
-        self.accounts = ["微信", "支付宝", "现金", "银行卡"]
+        self.accounts = ["银行卡", "微信", "支付宝", "现金"]
         self.default_col_ratios = [0.10, 0.08, 0.08, 0.10, 0.10, 0.10, 0.16, 0.28]
         self.col_ratios = list(self.default_col_ratios)
         self._load_col_ratios()
@@ -146,6 +146,8 @@ class MainWindow(QWidget):
         # 表格区域
         self.table = QTableWidget(0, 8)
         self.table.setHorizontalHeaderLabels(["日期", "类型", "分类", "描述", "金额", "账户", "标签", "备注"])
+        self.table.horizontalHeader().setStretchLastSection(False)  # type: ignore
+        self.table.horizontalHeader().sectionResized.connect(self.on_column_resized)  # type: ignore
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
         layout.addWidget(self.table)
@@ -165,9 +167,10 @@ class MainWindow(QWidget):
         try:
             with open("data/window_state.json", "r", encoding="utf-8") as f:
                 state = json.load(f)
-            saved = state.get("col_ratios")
-            if saved and len(saved) == 8:
-                self.col_ratios = saved
+            self.col_ratios = state.get("col_ratios")
+            # saved = state.get("col_ratios")
+            # if saved and len(saved) == 8:
+            #     self.col_ratios = [round(r, 3) for r in saved]
         except Exception:
             pass
 
@@ -187,16 +190,22 @@ class MainWindow(QWidget):
             else:
                 self.resize(900, 700)
             self.show()
+        QTimer.singleShot(0, self.adjust_column_widths)
 
     def closeEvent(self, event):
+        total_width = self.table.viewport().width()  # type: ignore
+        print(f"[closeEvent1] total_width={total_width}, col_ratios={self.col_ratios}")
+        # if total_width > 0:
+        #     self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
+        # self.col_ratios = [round(r, 3) for r in saved]
         os.makedirs("data", exist_ok=True)
         total_width = self.table.viewport().width()  # type: ignore
-        if total_width > 0:
-            self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
+        print(f"[closeEvent2] total_width={total_width}, col_ratios={self.col_ratios}")
         rect = self.geometry().getRect()
         state = {
             "maximized": self.isMaximized(),
             "geometry": [rect[0], rect[1], rect[2], rect[3]],
+            # "col_ratios": [round(r, 3) for r in self.col_ratios],
             "col_ratios": self.col_ratios,
         }
         with open("data/window_state.json", "w", encoding="utf-8") as f:
@@ -261,12 +270,24 @@ class MainWindow(QWidget):
             income += t.amount if t.type == "收入" else 0
             expense += t.amount if t.type == "支出" else 0
         self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
-        self.adjust_column_widths()
 
     def adjust_column_widths(self):
         total_width = self.table.viewport().width()  # type: ignore
         for i, ratio in enumerate(self.col_ratios):
             self.table.setColumnWidth(i, int(total_width * ratio))
+
+    def on_column_resized(self, index, old_size, new_size):
+        headers = ["日期", "类型", "分类", "描述", "金额", "账户", "标签", "备注"]
+        name = headers[index] if index < len(headers) else f"col{index}"
+        total = self.table.viewport().width()  # type: ignore
+        pct = new_size / total * 100 if total > 0 else 0
+        self.col_ratios = [round(self.table.columnWidth(i) / total, 3) for i in range(8)]
+        # total_width = self.table.viewport().width()  # type: ignore
+        # if total_width > 0:
+        #     self.col_ratios = [self.table.columnWidth(i) / total_width for i in range(8)]
+        # self.col_ratios = [round(r, 3) for r in saved]
+        print(f"[columnResized] {name}[{index}]: {old_size} -> {new_size} ({pct:.1f}% of {total})")
+        print(f"  updated col_ratios: {self.col_ratios}")
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
