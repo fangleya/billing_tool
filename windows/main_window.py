@@ -296,8 +296,8 @@ class MainWindow(QWidget):
     def refresh_table(self):
         self._refreshing = True
         header = self.table.horizontalHeader()
-        sort_col = header.sortIndicatorSection()
-        sort_order = header.sortIndicatorOrder()
+        sort_col = header.sortIndicatorSection()  # type: ignore
+        sort_order = header.sortIndicatorOrder()  # type: ignore
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
         income = expense = 0
@@ -314,7 +314,7 @@ class MainWindow(QWidget):
             expense += t.amount if t.type == "支出" else 0
         self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
         self.table.setSortingEnabled(True)
-        header.setSortIndicator(sort_col, sort_order)
+        header.setSortIndicator(sort_col, sort_order)  # type: ignore
         self._refreshing = False
 
     def adjust_column_widths(self):
