@@ -76,6 +76,8 @@ class MainWindow(QWidget):
                 height: 28px;
                 padding-left: 8px;
                 color: #333;
+                font-family: '微软雅黑';
+                font-size: 10px;
             }
             QComboBox QAbstractItemView::item:selected {
                 background-color: #4CAF50;
@@ -155,10 +157,12 @@ class MainWindow(QWidget):
         self.date_edit.setCalendarPopup(True)
         self.cmb_type = QComboBox()
         self.cmb_type.addItems(["支出", "收入"])
+        self._set_combo_item_fonts(self.cmb_type)
         self.cmb_category = QComboBox()
         self.update_categories()
         self.cmb_account = QComboBox()
         self.cmb_account.addItems(self.accounts)
+        self._set_combo_item_fonts(self.cmb_account)
         self.txt_desc = QLineEdit()
         self.txt_desc.setPlaceholderText("描述")
         self.txt_amount = QLineEdit()
@@ -382,6 +386,19 @@ class MainWindow(QWidget):
             self.accounts = list(self.default_accounts)
             self._save_config()
 
+    def _set_combo_item_fonts(self, combo: QComboBox):
+        font = QFont("微软雅黑", 10)
+        combo.setFont(font)
+        view = combo.view()
+        if view:
+            view.setFont(font)
+            view.setStyleSheet("font-family: '微软雅黑'; font-size: 10px;")
+        model = combo.model()
+        if model:
+            for i in range(combo.count()):
+                model.setData(model.index(i, 0), font, Qt.ItemDataRole.FontRole)
+                combo.setItemData(i, font, Qt.ItemDataRole.FontRole)
+
     def _save_config(self):
         os.makedirs("data", exist_ok=True)
         config = {"categories": self.categories, "accounts": self.accounts}
@@ -436,11 +453,13 @@ class MainWindow(QWidget):
                 self.cmb_category.addItem(QIcon(icon_path), cat)
             else:
                 self.cmb_category.addItem(cat)
+        self._set_combo_item_fonts(self.cmb_category)
         self._save_config()
 
     def update_accounts(self):
         self.cmb_account.clear()
         self.cmb_account.addItems(self.accounts)
+        self._set_combo_item_fonts(self.cmb_account)
         self._save_config()
 
     def export_csv(self, checked=False):
