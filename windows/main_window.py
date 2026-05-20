@@ -60,6 +60,7 @@ class MainWindow(QWidget):
                 border-radius: 4px;
                 padding-left: 5px;
                 background-color: #fff;
+                color: #333;
             }
             QComboBox QAbstractItemView {
                 background-color: white;
@@ -67,10 +68,14 @@ class MainWindow(QWidget):
                 border: 1px solid #ccc;
                 selection-background-color: #4CAF50;
                 selection-color: white;
+                color: #333;
+                font-family: '微软雅黑';
+                font-size: 14px;
             }
             QComboBox QAbstractItemView::item {
                 height: 28px;
                 padding-left: 8px;
+                color: #333;
             }
             QComboBox QAbstractItemView::item:selected {
                 background-color: #4CAF50;
@@ -80,15 +85,50 @@ class MainWindow(QWidget):
                 background-color: #81c784;
                 color: black;
             }
+            QCalendarWidget {
+                background-color: white;
+                color: #333;
+            }
+            QCalendarWidget QToolButton {
+                color: #333;
+                background-color: white;
+                border: 1px solid #ccc;
+                border-radius: 3px;
+                padding: 3px 6px;
+            }
+            QCalendarWidget QToolButton:hover {
+                background-color: #e8f5e9;
+            }
+            QCalendarWidget QMenu {
+                background-color: white;
+                color: #333;
+            }
+            QCalendarWidget QSpinBox {
+                background-color: white;
+                color: #333;
+            }
+            QCalendarWidget QAbstractItemView:enabled {
+                color: #333;
+                background-color: white;
+                selection-background-color: #4CAF50;
+                selection-color: white;
+            }
+            QCalendarWidget QAbstractItemView:disabled {
+                color: #ccc;
+            }
         """)
         self.resize(900, 700)
 
         self.transactions = []
-        self.categories = ["餐饮", "购物", "交通", "工资", "娱乐", "其他"]
-        self.accounts = ["银行卡", "微信", "支付宝", "现金"]
+        self.default_categories = ["餐饮", "购物", "交通", "工资", "娱乐", "其他"]
+        self.default_accounts = ["银行卡", "微信", "支付宝", "现金"]
+        self.categories = []
+        self.accounts = []
+        self._refreshing = False
         self.default_col_ratios = [0.10, 0.08, 0.08, 0.10, 0.10, 0.10, 0.16, 0.28]
         self.col_ratios = list(self.default_col_ratios)
         self._load_col_ratios()
+        self._load_config()
         self.load_data()
 
         layout = QVBoxLayout(self)
@@ -100,6 +140,7 @@ class MainWindow(QWidget):
             ("📁 分类管理", self.open_category),
             ("💳 账户管理", self.open_account),
             ("📤 导出 CSV", self.export_csv),
+            ("🔄 刷新", self.refresh_data),
             ("❓ 关于", self.show_about),
         ]:
             btn = QPushButton(name)
@@ -111,8 +152,9 @@ class MainWindow(QWidget):
         # 输入区域
         input_layout = QHBoxLayout()
         self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
         self.cmb_type = QComboBox()
-        self.cmb_type.addItems(["收入", "支出"])
+        self.cmb_type.addItems(["支出", "收入"])
         self.cmb_category = QComboBox()
         self.update_categories()
         self.cmb_account = QComboBox()
@@ -150,6 +192,8 @@ class MainWindow(QWidget):
         self.table.horizontalHeader().sectionResized.connect(self.on_column_resized)  # type: ignore
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.open_context_menu)
+        self.table.cellChanged.connect(self.on_cell_changed)
+        self.table.setSortingEnabled(True)
         layout.addWidget(self.table)
 
         # 汇总信息
@@ -246,6 +290,11 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, "错误", "请输入合法的金额")
 
     def refresh_table(self):
+        self._refreshing = True
+        header = self.table.horizontalHeader()
+        sort_col = header.sortIndicatorSection()
+        sort_order = header.sortIndicatorOrder()
+        self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
         income = expense = 0
         for t in self.transactions:
@@ -255,10 +304,14 @@ class MainWindow(QWidget):
             for col, val in enumerate(values):
                 item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                item.setData(Qt.ItemDataRole.UserRole, row)
                 self.table.setItem(row, col, item)
             income += t.amount if t.type == "收入" else 0
             expense += t.amount if t.type == "支出" else 0
         self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
+        self.table.setSortingEnabled(True)
+        header.setSortIndicator(sort_col, sort_order)
+        self._refreshing = False
 
     def adjust_column_widths(self):
         total_width = self.table.viewport().width()  # type: ignore
@@ -277,15 +330,17 @@ class MainWindow(QWidget):
         index = self.table.indexAt(pos)
         if not index.isValid():
             return
-        row = index.row()
+        visual_row = index.row()
+        item = self.table.item(visual_row, 0)
+        idx = item.data(Qt.ItemDataRole.UserRole) if item else visual_row
         menu = QMenu()
         act_edit = menu.addAction("✏️ 编辑")
         act_del = menu.addAction("🗑 删除")
         action = menu.exec_(self.table.viewport().mapToGlobal(pos))  # type: ignore
         if action == act_edit:
-            self.edit_transaction(row)
+            self.edit_transaction(idx)
         elif action == act_del:
-            del self.transactions[row]
+            del self.transactions[idx]
             self.save_data()
             self.refresh_table()
 
@@ -312,6 +367,55 @@ class MainWindow(QWidget):
         except:
             pass
 
+    def refresh_data(self, checked=False):
+        self.load_data()
+        self.refresh_table()
+
+    def _load_config(self):
+        try:
+            with open("data/config.json", "r", encoding="utf-8") as f:
+                config = json.load(f)
+            self.categories = config.get("categories", self.default_categories)
+            self.accounts = config.get("accounts", self.default_accounts)
+        except:
+            self.categories = list(self.default_categories)
+            self.accounts = list(self.default_accounts)
+            self._save_config()
+
+    def _save_config(self):
+        os.makedirs("data", exist_ok=True)
+        config = {"categories": self.categories, "accounts": self.accounts}
+        with open("data/config.json", "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+
+    def _update_summary(self):
+        income = sum(t.amount for t in self.transactions if t.type == "收入")
+        expense = sum(t.amount for t in self.transactions if t.type == "支出")
+        self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
+
+    def on_cell_changed(self, row, col):
+        if self._refreshing:
+            return
+        item = self.table.item(row, col)
+        if not item:
+            return
+        idx = item.data(Qt.ItemDataRole.UserRole)
+        if idx is None or idx >= len(self.transactions):
+            return
+        value = item.text()
+        t = self.transactions[idx]
+        fields = ["date", "type", "category", "description", "amount", "account", "tags", "note"]
+        field = fields[col]
+        if field == "amount":
+            try:
+                t.amount = float(value)
+            except ValueError:
+                return
+        else:
+            setattr(t, field, value)
+        self.save_data()
+        self._update_summary()
+
     def open_chart(self, checked=False):
         self.chart_win = ChartWindow(self.transactions)
         self.chart_win.show()
@@ -332,10 +436,12 @@ class MainWindow(QWidget):
                 self.cmb_category.addItem(QIcon(icon_path), cat)
             else:
                 self.cmb_category.addItem(cat)
+        self._save_config()
 
     def update_accounts(self):
         self.cmb_account.clear()
         self.cmb_account.addItems(self.accounts)
+        self._save_config()
 
     def export_csv(self, checked=False):
         path, _ = QFileDialog.getSaveFileName(self, "导出为 CSV 文件", "账本.csv", "CSV 文件 (*.csv)")
