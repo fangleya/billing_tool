@@ -204,6 +204,7 @@ class MainWindow(QWidget):
             txn_years = {QDate.currentDate().year()}
         self.filter_date_picker = YearMonthPicker(years=sorted(txn_years, reverse=True))
         self.filter_date_picker.selectionChanged.connect(self.on_filter_changed)
+        self.filter_date_picker.select_current()
         filter_layout.addWidget(self.filter_date_picker)
 
         filter_layout.addWidget(QLabel("搜索:"))

@@ -14,6 +14,8 @@ EXE_NAME = "本地记账工具.exe"
 # ── 需要编译的子模块（不包含入口 main.py） ──
 PY_MODULES = [
     "models/transaction.py",
+    "widgets/styled_combo.py",
+    "widgets/year_month_picker.py",
     "windows/main_window.py",
     "windows/chart_window.py",
     "windows/category_window.py",
@@ -211,9 +213,7 @@ def scan_project_dependencies():
         for imp in _scan_imports(py_file):
             if imp not in _get_stdlib_names():
                 # 跳过项目本地模块（ROOT 下存在同名目录或 .py 文件）
-                if os.path.isdir(os.path.join(ROOT, imp)) or os.path.isfile(
-                    os.path.join(ROOT, imp + ".py")
-                ):
+                if os.path.isdir(os.path.join(ROOT, imp)) or os.path.isfile(os.path.join(ROOT, imp + ".py")):
                     continue
                 needed.add(imp)
     return needed
@@ -685,7 +685,11 @@ def pyinstaller_package():
         f"resources{os.pathsep}resources",
         "--add-data",
         f"data{os.pathsep}data",
-        *[h for m in PY_MODULES for h in ("--hidden-import", m.replace("/", ".").replace("\\", ".").replace(".py", ""))],
+        *[
+            h
+            for m in PY_MODULES
+            for h in ("--hidden-import", m.replace("/", ".").replace("\\", ".").replace(".py", ""))
+        ],
         "--hidden-import",
         "matplotlib.backends.backend_qt5agg",
         os.path.join(BUILD_DIR, "main.py"),

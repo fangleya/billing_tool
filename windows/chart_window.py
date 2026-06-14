@@ -139,6 +139,7 @@ class ChartWindow(QWidget):
         row1.addWidget(QLabel("日期筛选:"))
         self.date_picker = YearMonthPicker(years=self.available_years)
         self.date_picker.selectionChanged.connect(self.plot)
+        self.date_picker.select_current()
         row1.addWidget(self.date_picker)
 
         row1.addWidget(QLabel("收支年份:"))

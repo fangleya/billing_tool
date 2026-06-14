@@ -57,6 +57,23 @@ class YearMonthPicker(QWidget):
         self.btn_clear.setToolTip("清除日期筛选")
         layout.addWidget(self.btn_clear)
 
+    def select_current(self):
+        """选中当前年份和月份（不触发信号）"""
+        current_year = QDate.currentDate().year()
+        current_month = QDate.currentDate().month()
+
+        self.year_combo.blockSignals(True)
+        idx = self.year_combo.findText(str(current_year))
+        if idx >= 0:
+            self.year_combo.setCurrentIndex(idx)
+        self.year_combo.blockSignals(False)
+
+        self.month_combo.blockSignals(True)
+        idx = self.month_combo.findText(f"{current_month}月")
+        if idx >= 0:
+            self.month_combo.setCurrentIndex(idx)
+        self.month_combo.blockSignals(False)
+
     def _on_selection_changed(self):
         """下拉选择变化时发出信号"""
         self.selectionChanged.emit()
