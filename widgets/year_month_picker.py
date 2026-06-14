@@ -2,9 +2,9 @@
 """年月选择组件：两个下拉框直接选择年份和月份，无需弹窗"""
 
 import calendar
-from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QComboBox
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton
 from PyQt5.QtCore import QDate, pyqtSignal
-from PyQt5.QtGui import QFont
+from widgets.styled_combo import StyledComboBox
 
 
 class YearMonthPicker(QWidget):
@@ -33,7 +33,7 @@ class YearMonthPicker(QWidget):
         layout.setSpacing(2)
 
         # 年份下拉
-        self.year_combo = QComboBox()
+        self.year_combo = StyledComboBox()
         self.year_combo.addItem("全部")
         for y in self.years:
             self.year_combo.addItem(str(y))
@@ -42,7 +42,7 @@ class YearMonthPicker(QWidget):
         layout.addWidget(self.year_combo)
 
         # 月份下拉
-        self.month_combo = QComboBox()
+        self.month_combo = StyledComboBox()
         self.month_combo.addItem("全部")
         for m in range(1, 13):
             self.month_combo.addItem(f"{m}月")
@@ -57,20 +57,29 @@ class YearMonthPicker(QWidget):
         self.btn_clear.setToolTip("清除日期筛选")
         layout.addWidget(self.btn_clear)
 
-        self._apply_combo_fonts()
-
-    def _apply_combo_fonts(self):
-        """统一设置下拉框字体"""
-        font = QFont("微软雅黑", 10)
-        for combo in (self.year_combo, self.month_combo):
-            combo.setFont(font)
-            view = combo.view()
-            if view:
-                view.setFont(font)
-
     def _on_selection_changed(self):
         """下拉选择变化时发出信号"""
         self.selectionChanged.emit()
+
+    def set_years(self, years):
+        """动态更新年份选项（保留当前选中状态）"""
+        if not years:
+            return
+        new_years = sorted(years, reverse=True)
+        if new_years == self.years:
+            return
+        self.years = new_years
+        current = self.year_combo.currentText()
+        self.year_combo.blockSignals(True)
+        self.year_combo.clear()
+        self.year_combo.addItem("全部")
+        for y in self.years:
+            self.year_combo.addItem(str(y))
+        # 恢复之前选中的年份
+        idx = self.year_combo.findText(current)
+        if idx >= 0:
+            self.year_combo.setCurrentIndex(idx)
+        self.year_combo.blockSignals(False)
 
     def clear_selection(self):
         """重置为'全部'"""
@@ -96,7 +105,26 @@ class YearMonthPicker(QWidget):
 
     def has_filter(self):
         """是否有有效的日期筛选"""
-        return self._get_selected_year() is not None
+        return self._get_selected_year() is not None or self._get_selected_month() is not None
+
+    def matches_date_filter(self, date_str):
+        """判断给定日期 yyyy-MM-dd 是否匹配当前筛选条件
+
+        - 都未选：匹配所有
+        - 只选年份：匹配该年
+        - 只选月份：匹配所有年份的该月份
+        - 都选：匹配指定年月
+        """
+        year = self._get_selected_year()
+        month = self._get_selected_month()
+
+        if year is None and month is None:
+            return True
+        if year is not None and month is None:
+            return date_str[:4] == str(year)
+        if year is None and month is not None:
+            return date_str[5:7] == f"{month:02d}"
+        return date_str[:7] == f"{year}-{month:02d}"
 
     def get_filter_start_date(self):
         """返回筛选开始日期 yyyy-MM-dd，无筛选返回 None"""

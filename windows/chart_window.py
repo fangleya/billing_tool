@@ -10,15 +10,14 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QHBoxLayout,
-    QComboBox,
     QLineEdit,
 )
-from PyQt5.QtCore import QDate, Qt
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import QDate
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas  # type: ignore
 from matplotlib.figure import Figure
 from datetime import datetime
 from widgets.year_month_picker import YearMonthPicker
+from widgets.styled_combo import StyledComboBox
 
 
 class ChartWindow(QWidget):
@@ -138,11 +137,11 @@ class ChartWindow(QWidget):
         row1 = QHBoxLayout()
 
         row1.addWidget(QLabel("年份:"))
-        self.year_combo = QComboBox()
+        self.year_combo = StyledComboBox()
         self.year_combo.addItems([str(y) for y in self.available_years])
         self.year_combo.setFixedHeight(32)
         self.year_combo.currentIndexChanged.connect(self.plot)
-        self._fix_combo_font(self.year_combo)
+
         row1.addWidget(self.year_combo)
 
         row1.addWidget(QLabel("日期:"))
@@ -155,13 +154,11 @@ class ChartWindow(QWidget):
         # 第二行：账户 + 标签
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel("账户筛选："))
-        self.cmb_account = QComboBox()
+        self.cmb_account = StyledComboBox()
         self.cmb_account.addItem("全部账户")
         for acc in sorted(set(t.account for t in transactions)):
             self.cmb_account.addItem(acc)
         self.cmb_account.currentIndexChanged.connect(self.plot)
-        self._fix_combo_font(self.cmb_account)
-
         filter_layout.addWidget(QLabel("标签关键词："))
         self.txt_tag_filter = QLineEdit()
         self.txt_tag_filter.setPlaceholderText("标签包含关键字")
@@ -176,20 +173,7 @@ class ChartWindow(QWidget):
 
         self.plot()
 
-    def _fix_combo_font(self, combo: QComboBox):
-        """显式设置下拉列表字体，防止样式继承导致字体变小"""
-        font = QFont("微软雅黑", 10)
-        view = combo.view()
-        if view:
-            view.setFont(font)
-        model = combo.model()
-        if model:
-            for i in range(combo.count()):
-                model.setData(model.index(i, 0), font, Qt.ItemDataRole.FontRole)
-
     def plot(self, _=None):
-        start_date = self.date_picker.get_filter_start_date()
-        end_date = self.date_picker.get_filter_end_date()
         account_filter = self.cmb_account.currentText()
         tag_keyword = self.txt_tag_filter.text().strip().lower()
         selected_year = int(self.year_combo.currentText())
@@ -201,9 +185,8 @@ class ChartWindow(QWidget):
                 continue
             if tag_keyword and tag_keyword not in t.tags.lower():
                 continue
-            if start_date and end_date:
-                if t.date < start_date or t.date > end_date:
-                    continue
+            if not self.date_picker.matches_date_filter(t.date):
+                continue
             pie_filtered.append(t)
 
         # 柱状图数据：使用选定年份，不受日期筛选影响
@@ -234,17 +217,19 @@ class ChartWindow(QWidget):
 
         if categories:
             total = sum(categories.values())
-            # 将比例小于 1% 的分类合并为"其它"
+            # 将比例小于 1% 的分类合并，标签显示为分类名称拼接
             main_categories = {}
             other_amount = 0.0
+            other_names = []
             for name, amount in categories.items():
                 pct = amount / total * 100 if total > 0 else 0
                 if pct < 1.0:
                     other_amount += amount
+                    other_names.append(name)
                 else:
                     main_categories[name] = amount
             if other_amount > 0:
-                main_categories["其它"] = other_amount
+                main_categories["+".join(other_names)] = other_amount
 
             labels = list(main_categories.keys())
             values = list(main_categories.values())

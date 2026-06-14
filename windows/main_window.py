@@ -4,7 +4,6 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QLineEdit,
-    QComboBox,
     QPushButton,
     QDateEdit,
     QTableWidget,
@@ -16,6 +15,7 @@ from PyQt5.QtWidgets import (
     QApplication,
     QStyleFactory,
 )
+from widgets.styled_combo import StyledComboBox
 from PyQt5.QtCore import Qt, QDate, QPoint, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
 from models.transaction import Transaction
@@ -157,14 +157,12 @@ class MainWindow(QWidget):
         input_layout = QHBoxLayout()
         self.date_edit = QDateEdit(QDate.currentDate())
         self.date_edit.setCalendarPopup(True)
-        self.cmb_type = QComboBox()
+        self.cmb_type = StyledComboBox()
         self.cmb_type.addItems(["支出", "收入"])
-        self._set_combo_item_fonts(self.cmb_type)
-        self.cmb_category = QComboBox()
+        self.cmb_category = StyledComboBox()
         self.update_categories()
-        self.cmb_account = QComboBox()
+        self.cmb_account = StyledComboBox()
         self.cmb_account.addItems(self.accounts)
-        self._set_combo_item_fonts(self.cmb_account)
         self.txt_desc = QLineEdit()
         self.txt_desc.setPlaceholderText("描述")
         self.txt_amount = QLineEdit()
@@ -195,7 +193,16 @@ class MainWindow(QWidget):
         filter_layout = QHBoxLayout()
 
         filter_layout.addWidget(QLabel("日期:"))
-        self.filter_date_picker = YearMonthPicker()
+        # 从交易记录中动态获取年份列表
+        txn_years = set()
+        for t in self.transactions:
+            try:
+                txn_years.add(int(t.date[:4]))
+            except:
+                pass
+        if not txn_years:
+            txn_years = {QDate.currentDate().year()}
+        self.filter_date_picker = YearMonthPicker(years=sorted(txn_years, reverse=True))
         self.filter_date_picker.selectionChanged.connect(self.on_filter_changed)
         filter_layout.addWidget(self.filter_date_picker)
 
@@ -207,33 +214,29 @@ class MainWindow(QWidget):
         filter_layout.addWidget(self.filter_keyword)
 
         filter_layout.addWidget(QLabel("分类:"))
-        self.filter_category = QComboBox()
+        self.filter_category = StyledComboBox()
         self.filter_category.setFixedHeight(32)
         self.filter_category.currentIndexChanged.connect(self.on_filter_changed)
-        self._set_combo_item_fonts(self.filter_category)
         filter_layout.addWidget(self.filter_category)
 
         filter_layout.addWidget(QLabel("账户:"))
-        self.filter_account = QComboBox()
+        self.filter_account = StyledComboBox()
         self.filter_account.setFixedHeight(32)
         self.filter_account.currentIndexChanged.connect(self.on_filter_changed)
-        self._set_combo_item_fonts(self.filter_account)
         filter_layout.addWidget(self.filter_account)
 
         filter_layout.addWidget(QLabel("类型:"))
-        self.filter_type = QComboBox()
+        self.filter_type = StyledComboBox()
         self.filter_type.addItems(["全部", "支出", "收入"])
         self.filter_type.setFixedHeight(32)
         self.filter_type.currentIndexChanged.connect(self.on_filter_changed)
-        self._set_combo_item_fonts(self.filter_type)
         filter_layout.addWidget(self.filter_type)
 
         filter_layout.addWidget(QLabel("排序:"))
-        self.filter_sort = QComboBox()
+        self.filter_sort = StyledComboBox()
         self.filter_sort.addItems(["默认", "日期 ↑", "日期 ↓", "金额 ↑", "金额 ↓", "分类 ↑", "分类 ↓", "账户 ↑", "账户 ↓"])
         self.filter_sort.setFixedHeight(32)
         self.filter_sort.currentIndexChanged.connect(self.on_filter_changed)
-        self._set_combo_item_fonts(self.filter_sort)
         filter_layout.addWidget(self.filter_sort)
 
         self.btn_clear_filter = QPushButton("清除筛选")
@@ -345,6 +348,7 @@ class MainWindow(QWidget):
             )
             self.transactions.append(t)
             self.save_data()
+            self._refresh_filter_years()
             self.refresh_table()
             for w in [self.txt_desc, self.txt_amount, self.txt_tags, self.txt_note]:
                 w.clear()
@@ -353,8 +357,6 @@ class MainWindow(QWidget):
 
     def get_filtered_transactions(self):
         """根据当前筛选条件返回 (原始索引, 交易记录) 列表"""
-        start_date = self.filter_date_picker.get_filter_start_date()
-        end_date = self.filter_date_picker.get_filter_end_date()
         keyword = self.filter_keyword.text().strip().lower()
         category = self.filter_category.currentText()
         account = self.filter_account.currentText()
@@ -362,9 +364,8 @@ class MainWindow(QWidget):
 
         filtered = []
         for i, t in enumerate(self.transactions):
-            if start_date and end_date:
-                if t.date < start_date or t.date > end_date:
-                    continue
+            if not self.filter_date_picker.matches_date_filter(t.date):
+                continue
             if type_filter != "全部" and t.type != type_filter:
                 continue
             if category and category != "全部分类" and t.category != category:
@@ -487,8 +488,21 @@ class MainWindow(QWidget):
         except:
             pass
 
+    def _refresh_filter_years(self):
+        """从交易数据中动态更新日期筛选器的年份选项"""
+        txn_years = set()
+        for t in self.transactions:
+            try:
+                txn_years.add(int(t.date[:4]))
+            except:
+                pass
+        if not txn_years:
+            txn_years = {QDate.currentDate().year()}
+        self.filter_date_picker.set_years(txn_years)
+
     def refresh_data(self, checked=False):
         self.load_data()
+        self._refresh_filter_years()
         self.refresh_table()
 
     def _load_config(self):
@@ -501,19 +515,6 @@ class MainWindow(QWidget):
             self.categories = list(self.default_categories)
             self.accounts = list(self.default_accounts)
             self._save_config()
-
-    def _set_combo_item_fonts(self, combo: QComboBox):
-        font = QFont("微软雅黑", 10)
-        combo.setFont(font)
-        view = combo.view()
-        if view:
-            view.setFont(font)
-            view.setStyleSheet("font-family: '微软雅黑'; font-size: 10px;")
-        model = combo.model()
-        if model:
-            for i in range(combo.count()):
-                model.setData(model.index(i, 0), font, Qt.ItemDataRole.FontRole)
-                combo.setItemData(i, font, Qt.ItemDataRole.FontRole)
 
     def _save_config(self):
         os.makedirs("data", exist_ok=True)
@@ -569,7 +570,6 @@ class MainWindow(QWidget):
                 self.cmb_category.addItem(QIcon(icon_path), cat)
             else:
                 self.cmb_category.addItem(cat)
-        self._set_combo_item_fonts(self.cmb_category)
         self._update_filter_categories()
         self._save_config()
 
@@ -580,13 +580,11 @@ class MainWindow(QWidget):
         self.filter_category.clear()
         self.filter_category.addItem("全部分类")
         self.filter_category.addItems(self.categories)
-        self._set_combo_item_fonts(self.filter_category)
         self.filter_category.blockSignals(False)
 
     def update_accounts(self):
         self.cmb_account.clear()
         self.cmb_account.addItems(self.accounts)
-        self._set_combo_item_fonts(self.cmb_account)
         self._update_filter_accounts()
         self._save_config()
 
@@ -597,7 +595,6 @@ class MainWindow(QWidget):
         self.filter_account.clear()
         self.filter_account.addItem("全部账户")
         self.filter_account.addItems(self.accounts)
-        self._set_combo_item_fonts(self.filter_account)
         self.filter_account.blockSignals(False)
 
     def export_csv(self, checked=False):
@@ -616,9 +613,7 @@ class MainWindow(QWidget):
         self.refresh_table()
 
     def clear_filters(self):
-        """清除所有筛选条件"""
-        self.filter_date_picker.clear_selection()
-
+        """清除除日期外的所有筛选条件"""
         self.filter_keyword.blockSignals(True)
         self.filter_keyword.clear()
         self.filter_keyword.blockSignals(False)

@@ -1,7 +1,8 @@
 # windows/edit_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QComboBox, QPushButton, QDateEdit, QMessageBox
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QDateEdit, QMessageBox
 from PyQt5.QtCore import QDate
 from models.transaction import Transaction
+from widgets.styled_combo import StyledComboBox
 
 class EditWindow(QWidget):
     def __init__(self, transaction, categories, accounts, save_callback):
@@ -14,11 +15,11 @@ class EditWindow(QWidget):
         layout = QVBoxLayout(self)
 
         self.date_edit = QDateEdit(QDate.fromString(transaction.date, "yyyy-MM-dd"))
-        self.cmb_type = QComboBox(); self.cmb_type.addItems(["收入", "支出"])
+        self.cmb_type = StyledComboBox(); self.cmb_type.addItems(["收入", "支出"])
         self.cmb_type.setCurrentText(transaction.type)
-        self.cmb_cat = QComboBox(); self.cmb_cat.addItems(categories)
+        self.cmb_cat = StyledComboBox(); self.cmb_cat.addItems(categories)
         self.cmb_cat.setCurrentText(transaction.category)
-        self.cmb_acc = QComboBox(); self.cmb_acc.addItems(accounts)
+        self.cmb_acc = StyledComboBox(); self.cmb_acc.addItems(accounts)
         self.cmb_acc.setCurrentText(transaction.account)
         self.txt_desc = QLineEdit(transaction.description)
         self.txt_amount = QLineEdit(str(transaction.amount))
