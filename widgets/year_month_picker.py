@@ -1,37 +1,26 @@
 # widgets/year_month_picker.py
-"""年月选择组件：点击弹出选择框，选择后显示选中内容，支持清除"""
+"""年月选择组件：两个下拉框直接选择年份和月份，无需弹窗"""
 
 import calendar
-from PyQt5.QtWidgets import (
-    QWidget,
-    QHBoxLayout,
-    QVBoxLayout,
-    QPushButton,
-    QDialog,
-    QLabel,
-    QComboBox,
-)
-from PyQt5.QtCore import QDate, pyqtSignal, Qt
+from PyQt5.QtWidgets import QWidget, QHBoxLayout, QPushButton, QComboBox
+from PyQt5.QtCore import QDate, pyqtSignal
 from PyQt5.QtGui import QFont
 
 
 class YearMonthPicker(QWidget):
     """年月选择器
 
-    默认不显示任何年月（表示不筛选）。
-    点击按钮弹出对话框选择年份和月份。
+    两个下拉框直接选择年份和月份，无需弹窗。
+    - 都选"全部"：不筛选
     - 只选年份：筛选该年全部记录
     - 只选月份：默认当前年份 + 该月份
     - 都选：筛选指定年月
-    - 都不选：不筛选
     """
 
     selectionChanged = pyqtSignal()
 
     def __init__(self, years=None, parent=None):
         super().__init__(parent)
-        self.selected_year = None  # None 表示未选择
-        self.selected_month = None  # None 表示未选择
 
         if years:
             self.years = list(years)
@@ -43,136 +32,101 @@ class YearMonthPicker(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(2)
 
-        self.btn_display = QPushButton("选择年月")
-        self.btn_display.setFixedHeight(32)
-        self.btn_display.setMinimumWidth(100)
-        self.btn_display.clicked.connect(self.open_dialog)
-        layout.addWidget(self.btn_display)
+        # 年份下拉
+        self.year_combo = QComboBox()
+        self.year_combo.addItem("全部")
+        for y in self.years:
+            self.year_combo.addItem(str(y))
+        self.year_combo.setFixedHeight(32)
+        self.year_combo.currentIndexChanged.connect(self._on_selection_changed)
+        layout.addWidget(self.year_combo)
 
+        # 月份下拉
+        self.month_combo = QComboBox()
+        self.month_combo.addItem("全部")
+        for m in range(1, 13):
+            self.month_combo.addItem(f"{m}月")
+        self.month_combo.setFixedHeight(32)
+        self.month_combo.currentIndexChanged.connect(self._on_selection_changed)
+        layout.addWidget(self.month_combo)
+
+        # 清除按钮
         self.btn_clear = QPushButton("✕")
         self.btn_clear.setFixedSize(24, 32)
         self.btn_clear.clicked.connect(self.clear_selection)
-        self.btn_clear.setVisible(False)
         self.btn_clear.setToolTip("清除日期筛选")
         layout.addWidget(self.btn_clear)
 
-    def open_dialog(self):
-        dialog = QDialog(self)
-        dialog.setWindowTitle("选择年月")
-        dialog.setFixedSize(280, 160)
-        dialog.setStyleSheet(
-            "QDialog { background-color: #fff; }"
-            "QLabel { font-family: '微软雅黑'; font-size: 14px; color: #333; }"
-            "QComboBox { border: 1px solid #ccc; border-radius: 4px; padding-left: 5px;"
-            "  background-color: #fff; color: #333; font-family: '微软雅黑'; font-size: 14px; }"
-            "QComboBox QAbstractItemView { background-color: white; color: #333;"
-            "  font-family: '微软雅黑'; font-size: 14px; selection-background-color: #4CAF50; }"
-            "QPushButton { background-color: #4CAF50; color: white; border: none;"
-            "  border-radius: 4px; padding: 5px 16px; font-family: '微软雅黑'; font-size: 14px; }"
-            "QPushButton:hover { background-color: #45a049; }"
-        )
-        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowType.WindowContextHelpButtonHint)
+        self._apply_combo_fonts()
 
-        dlg_layout = QVBoxLayout(dialog)
+    def _apply_combo_fonts(self):
+        """统一设置下拉框字体"""
+        font = QFont("微软雅黑", 10)
+        for combo in (self.year_combo, self.month_combo):
+            combo.setFont(font)
+            view = combo.view()
+            if view:
+                view.setFont(font)
 
-        # 年份行
-        year_layout = QHBoxLayout()
-        year_layout.addWidget(QLabel("年份:"))
-        year_combo = QComboBox()
-        year_combo.addItem("全部")
-        for y in self.years:
-            year_combo.addItem(str(y))
-        if self.selected_year is not None:
-            idx = year_combo.findText(str(self.selected_year))
-            if idx >= 0:
-                year_combo.setCurrentIndex(idx)
-        year_layout.addWidget(year_combo)
-        dlg_layout.addLayout(year_layout)
-
-        # 月份行
-        month_layout = QHBoxLayout()
-        month_layout.addWidget(QLabel("月份:"))
-        month_combo = QComboBox()
-        month_combo.addItem("全部")
-        for m in range(1, 13):
-            month_combo.addItem(f"{m}月")
-        if self.selected_month is not None:
-            idx = month_combo.findText(f"{self.selected_month}月")
-            if idx >= 0:
-                month_combo.setCurrentIndex(idx)
-        month_layout.addWidget(month_combo)
-        dlg_layout.addLayout(month_layout)
-
-        # 按钮行
-        btn_layout = QHBoxLayout()
-        btn_layout.addStretch()
-        btn_cancel = QPushButton("取消")
-        btn_cancel.clicked.connect(dialog.reject)
-        btn_layout.addWidget(btn_cancel)
-        btn_ok = QPushButton("确定")
-        btn_ok.clicked.connect(dialog.accept)
-        btn_layout.addWidget(btn_ok)
-        dlg_layout.addLayout(btn_layout)
-
-        if dialog.exec_() == QDialog.Accepted:
-            year_text = year_combo.currentText()
-            month_text = month_combo.currentText()
-            current_year = QDate.currentDate().year()
-
-            # 都没选 → 清除
-            if year_text == "全部" and month_text == "全部":
-                self.clear_selection()
-                return
-
-            # 只选了月份 → 默认当前年份
-            if year_text == "全部":
-                self.selected_year = current_year
-            else:
-                self.selected_year = int(year_text)
-
-            # 月份选了"全部" → 只按年筛选
-            if month_text == "全部":
-                self.selected_month = None
-            else:
-                self.selected_month = int(month_text.replace("月", ""))
-
-            self.update_display()
-            self.selectionChanged.emit()
-
-    def clear_selection(self):
-        self.selected_year = None
-        self.selected_month = None
-        self.update_display()
+    def _on_selection_changed(self):
+        """下拉选择变化时发出信号"""
         self.selectionChanged.emit()
 
-    def update_display(self):
-        if self.selected_year is None:
-            self.btn_display.setText("选择年月")
-            self.btn_clear.setVisible(False)
-        elif self.selected_month is None:
-            self.btn_display.setText(f"{self.selected_year}年")
-            self.btn_clear.setVisible(True)
-        else:
-            self.btn_display.setText(f"{self.selected_year}年{self.selected_month}月")
-            self.btn_clear.setVisible(True)
+    def clear_selection(self):
+        """重置为'全部'"""
+        self.year_combo.blockSignals(True)
+        self.year_combo.setCurrentIndex(0)
+        self.year_combo.blockSignals(False)
+
+        self.month_combo.blockSignals(True)
+        self.month_combo.setCurrentIndex(0)
+        self.month_combo.blockSignals(False)
+
+        self.selectionChanged.emit()
+
+    def _get_selected_year(self):
+        """返回选中的年份，'全部'返回 None"""
+        text = self.year_combo.currentText()
+        return None if text == "全部" else int(text)
+
+    def _get_selected_month(self):
+        """返回选中的月份，'全部'返回 None"""
+        text = self.month_combo.currentText()
+        return None if text == "全部" else int(text.replace("月", ""))
 
     def has_filter(self):
         """是否有有效的日期筛选"""
-        return self.selected_year is not None
+        return self._get_selected_year() is not None
 
     def get_filter_start_date(self):
         """返回筛选开始日期 yyyy-MM-dd，无筛选返回 None"""
-        if self.selected_year is None:
+        year = self._get_selected_year()
+        month = self._get_selected_month()
+
+        if year is None and month is None:
             return None
-        if self.selected_month is None:
-            return f"{self.selected_year}-01-01"
-        return f"{self.selected_year}-{self.selected_month:02d}-01"
+
+        # 只选了月份 → 默认当前年份
+        if year is None:
+            year = QDate.currentDate().year()
+
+        if month is None:
+            return f"{year}-01-01"
+        return f"{year}-{month:02d}-01"
 
     def get_filter_end_date(self):
         """返回筛选结束日期 yyyy-MM-dd，无筛选返回 None"""
-        if self.selected_year is None:
+        year = self._get_selected_year()
+        month = self._get_selected_month()
+
+        if year is None and month is None:
             return None
-        if self.selected_month is None:
-            return f"{self.selected_year}-12-31"
-        last_day = calendar.monthrange(self.selected_year, self.selected_month)[1]
-        return f"{self.selected_year}-{self.selected_month:02d}-{last_day:02d}"
+
+        # 只选了月份 → 默认当前年份
+        if year is None:
+            year = QDate.currentDate().year()
+
+        if month is None:
+            return f"{year}-12-31"
+        last_day = calendar.monthrange(year, month)[1]
+        return f"{year}-{month:02d}-{last_day:02d}"
