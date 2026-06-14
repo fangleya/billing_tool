@@ -74,7 +74,7 @@ class YearMonthPicker(QWidget):
             self.month_combo.setCurrentIndex(idx)
         self.month_combo.blockSignals(False)
 
-    def _on_selection_changed(self):
+    def _on_selection_changed(self, _=None):
         """下拉选择变化时发出信号"""
         self.selectionChanged.emit()
 
@@ -98,7 +98,7 @@ class YearMonthPicker(QWidget):
             self.year_combo.setCurrentIndex(idx)
         self.year_combo.blockSignals(False)
 
-    def clear_selection(self):
+    def clear_selection(self, _=None):
         """重置为'全部'"""
         self.year_combo.blockSignals(True)
         self.year_combo.setCurrentIndex(0)

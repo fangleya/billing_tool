@@ -610,11 +610,11 @@ class MainWindow(QWidget):
                 writer.writerow([t.date, t.type, t.category, t.description, t.amount, t.account, t.tags, t.note])
         QMessageBox.information(self, "导出成功", f"数据已导出到：\n{path}")
 
-    def on_filter_changed(self):
+    def on_filter_changed(self, _=None):
         """筛选条件变化时刷新表格"""
         self.refresh_table()
 
-    def clear_filters(self):
+    def clear_filters(self, _=None):
         """清除除日期外的所有筛选条件"""
         self.filter_keyword.blockSignals(True)
         self.filter_keyword.clear()
