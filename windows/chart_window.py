@@ -130,24 +130,24 @@ class ChartWindow(QWidget):
 
         layout = QVBoxLayout(self)
 
-        self.label = QLabel("月度收支柱状图 + 分类支出饼图")
+        self.label = QLabel("分类支出饼图 + 月度收支柱状图")
         layout.addWidget(self.label)
 
         # 第一行：年份选择 + 日期筛选
         row1 = QHBoxLayout()
 
-        row1.addWidget(QLabel("年份:"))
+        row1.addWidget(QLabel("日期筛选:"))
+        self.date_picker = YearMonthPicker(years=self.available_years)
+        self.date_picker.selectionChanged.connect(self.plot)
+        row1.addWidget(self.date_picker)
+
+        row1.addWidget(QLabel("收支年份:"))
         self.year_combo = StyledComboBox()
         self.year_combo.addItems([str(y) for y in self.available_years])
         self.year_combo.setFixedHeight(32)
         self.year_combo.currentIndexChanged.connect(self.plot)
-
         row1.addWidget(self.year_combo)
 
-        row1.addWidget(QLabel("日期:"))
-        self.date_picker = YearMonthPicker(years=self.available_years)
-        self.date_picker.selectionChanged.connect(self.plot)
-        row1.addWidget(self.date_picker)
         row1.addStretch()
         layout.addLayout(row1)
 
