@@ -12,14 +12,13 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QComboBox,
     QLineEdit,
-    QDateEdit,
-    QCheckBox,
 )
 from PyQt5.QtCore import QDate, Qt
 from PyQt5.QtGui import QFont
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas  # type: ignore
 from matplotlib.figure import Figure
 from datetime import datetime
+from widgets.year_month_picker import YearMonthPicker
 
 
 class ChartWindow(QWidget):
@@ -132,16 +131,11 @@ class ChartWindow(QWidget):
 
         layout = QVBoxLayout(self)
 
-        self.label = QLabel("分类支出饼图 + 月度收支柱状图")
+        self.label = QLabel("月度收支柱状图 + 分类支出饼图")
         layout.addWidget(self.label)
 
-        # 第一行：日期筛选开关 + 年份选择
+        # 第一行：年份选择 + 日期筛选
         row1 = QHBoxLayout()
-
-        self.date_filter_toggle = QCheckBox("启用日期筛选")
-        self.date_filter_toggle.setFixedHeight(32)
-        self.date_filter_toggle.toggled.connect(self.on_date_filter_toggled)
-        row1.addWidget(self.date_filter_toggle)
 
         row1.addWidget(QLabel("年份:"))
         self.year_combo = QComboBox()
@@ -150,30 +144,15 @@ class ChartWindow(QWidget):
         self.year_combo.currentIndexChanged.connect(self.plot)
         self._fix_combo_font(self.year_combo)
         row1.addWidget(self.year_combo)
+
+        row1.addWidget(QLabel("日期:"))
+        self.date_picker = YearMonthPicker(years=self.available_years)
+        self.date_picker.selectionChanged.connect(self.plot)
+        row1.addWidget(self.date_picker)
         row1.addStretch()
         layout.addLayout(row1)
 
-        # 第二行：日期范围（放在容器中，通过开关控制显示）
-        self.date_container = QWidget()
-        date_layout = QHBoxLayout(self.date_container)
-        date_layout.setContentsMargins(0, 0, 0, 0)
-        date_layout.addWidget(QLabel("日期范围:"))
-        self.start_date_edit = QDateEdit(QDate.currentDate().addMonths(-12))
-        self.start_date_edit.setCalendarPopup(True)
-        self.start_date_edit.dateChanged.connect(self.plot)
-        date_layout.addWidget(self.start_date_edit)
-
-        date_layout.addWidget(QLabel("至"))
-        self.end_date_edit = QDateEdit(QDate.currentDate())
-        self.end_date_edit.setCalendarPopup(True)
-        self.end_date_edit.dateChanged.connect(self.plot)
-        date_layout.addWidget(self.end_date_edit)
-        layout.addWidget(self.date_container)
-
-        # 默认关闭日期筛选
-        self.date_container.setVisible(False)
-
-        # 第三行：账户 + 标签
+        # 第二行：账户 + 标签
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel("账户筛选："))
         self.cmb_account = QComboBox()
@@ -208,27 +187,21 @@ class ChartWindow(QWidget):
             for i in range(combo.count()):
                 model.setData(model.index(i, 0), font, Qt.ItemDataRole.FontRole)
 
-    def on_date_filter_toggled(self, checked):
-        """日期筛选开关切换"""
-        self.date_container.setVisible(checked)
-        self.plot()
-
     def plot(self, _=None):
-        date_filter_on = self.date_filter_toggle.isChecked()
-        start_date = self.start_date_edit.date().toString("yyyy-MM-dd")
-        end_date = self.end_date_edit.date().toString("yyyy-MM-dd")
+        start_date = self.date_picker.get_filter_start_date()
+        end_date = self.date_picker.get_filter_end_date()
         account_filter = self.cmb_account.currentText()
         tag_keyword = self.txt_tag_filter.text().strip().lower()
         selected_year = int(self.year_combo.currentText())
 
-        # 饼图数据：根据日期筛选开关决定是否过滤
+        # 饼图数据：根据日期选择器筛选
         pie_filtered = []
         for t in self.transactions:
             if account_filter != "全部账户" and t.account != account_filter:
                 continue
             if tag_keyword and tag_keyword not in t.tags.lower():
                 continue
-            if date_filter_on:
+            if start_date and end_date:
                 if t.date < start_date or t.date > end_date:
                     continue
             pie_filtered.append(t)

@@ -15,7 +15,6 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QApplication,
     QStyleFactory,
-    QCheckBox,
 )
 from PyQt5.QtCore import Qt, QDate, QPoint, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -24,6 +23,7 @@ from windows.chart_window import ChartWindow
 from windows.category_window import CategoryWindow
 from windows.account_window import AccountWindow
 from windows.edit_window import EditWindow
+from widgets.year_month_picker import YearMonthPicker
 
 
 class MainWindow(QWidget):
@@ -191,38 +191,13 @@ class MainWindow(QWidget):
             input_layout.addWidget(w)
         layout.addLayout(input_layout)
 
-        # 筛选开关行
-        toggle_layout = QHBoxLayout()
-        self.filter_toggle = QCheckBox("启用筛选")
-        self.filter_toggle.setFixedHeight(32)
-        self.filter_toggle.toggled.connect(self.on_filter_toggled)
-        toggle_layout.addWidget(self.filter_toggle)
-
-        self.btn_clear_filter = QPushButton("清除筛选")
-        self.btn_clear_filter.setFixedHeight(32)
-        self.btn_clear_filter.clicked.connect(self.clear_filters)
-        toggle_layout.addWidget(self.btn_clear_filter)
-        toggle_layout.addStretch()
-        layout.addLayout(toggle_layout)
-
-        # 筛选区域（放在容器中，通过开关控制显示）
-        self.filter_container = QWidget()
-        filter_layout = QHBoxLayout(self.filter_container)
-        filter_layout.setContentsMargins(0, 0, 0, 0)
+        # 筛选区域
+        filter_layout = QHBoxLayout()
 
         filter_layout.addWidget(QLabel("日期:"))
-        self.filter_start_date = QDateEdit(QDate.currentDate().addMonths(-12))
-        self.filter_start_date.setCalendarPopup(True)
-        self.filter_start_date.setFixedHeight(32)
-        self.filter_start_date.dateChanged.connect(self.on_start_date_changed)
-        filter_layout.addWidget(self.filter_start_date)
-
-        filter_layout.addWidget(QLabel("-"))
-        self.filter_end_date = QDateEdit(QDate.currentDate())
-        self.filter_end_date.setCalendarPopup(True)
-        self.filter_end_date.setFixedHeight(32)
-        self.filter_end_date.dateChanged.connect(self.on_filter_changed)
-        filter_layout.addWidget(self.filter_end_date)
+        self.filter_date_picker = YearMonthPicker()
+        self.filter_date_picker.selectionChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.filter_date_picker)
 
         filter_layout.addWidget(QLabel("搜索:"))
         self.filter_keyword = QLineEdit()
@@ -261,14 +236,16 @@ class MainWindow(QWidget):
         self._set_combo_item_fonts(self.filter_sort)
         filter_layout.addWidget(self.filter_sort)
 
-        layout.addWidget(self.filter_container)
+        self.btn_clear_filter = QPushButton("清除筛选")
+        self.btn_clear_filter.setFixedHeight(32)
+        self.btn_clear_filter.clicked.connect(self.clear_filters)
+        filter_layout.addWidget(self.btn_clear_filter)
+
+        layout.addLayout(filter_layout)
 
         # 初始化筛选下拉框
         self._update_filter_categories()
         self._update_filter_accounts()
-
-        # 默认关闭筛选
-        self.filter_container.setVisible(False)
 
         # 表格区域
         self.table = QTableWidget(0, 8)
@@ -376,12 +353,8 @@ class MainWindow(QWidget):
 
     def get_filtered_transactions(self):
         """根据当前筛选条件返回 (原始索引, 交易记录) 列表"""
-        # 筛选开关关闭时，直接返回全部交易
-        if not self.filter_toggle.isChecked():
-            return [(i, t) for i, t in enumerate(self.transactions)]
-
-        start_date = self.filter_start_date.date().toString("yyyy-MM-dd")
-        end_date = self.filter_end_date.date().toString("yyyy-MM-dd")
+        start_date = self.filter_date_picker.get_filter_start_date()
+        end_date = self.filter_date_picker.get_filter_end_date()
         keyword = self.filter_keyword.text().strip().lower()
         category = self.filter_category.currentText()
         account = self.filter_account.currentText()
@@ -389,8 +362,9 @@ class MainWindow(QWidget):
 
         filtered = []
         for i, t in enumerate(self.transactions):
-            if t.date < start_date or t.date > end_date:
-                continue
+            if start_date and end_date:
+                if t.date < start_date or t.date > end_date:
+                    continue
             if type_filter != "全部" and t.type != type_filter:
                 continue
             if category and category != "全部分类" and t.category != category:
@@ -641,28 +615,9 @@ class MainWindow(QWidget):
         """筛选条件变化时刷新表格"""
         self.refresh_table()
 
-    def on_start_date_changed(self, new_date):
-        """开始日期变化时，若超过结束日期则自动调整结束日期"""
-        if new_date > self.filter_end_date.date():
-            self.filter_end_date.blockSignals(True)
-            self.filter_end_date.setDate(new_date)
-            self.filter_end_date.blockSignals(False)
-        self.refresh_table()
-
-    def on_filter_toggled(self, checked):
-        """筛选开关切换"""
-        self.filter_container.setVisible(checked)
-        self.refresh_table()
-
     def clear_filters(self):
         """清除所有筛选条件"""
-        self.filter_start_date.blockSignals(True)
-        self.filter_start_date.setDate(QDate.currentDate().addMonths(-12))
-        self.filter_start_date.blockSignals(False)
-
-        self.filter_end_date.blockSignals(True)
-        self.filter_end_date.setDate(QDate.currentDate())
-        self.filter_end_date.blockSignals(False)
+        self.filter_date_picker.clear_selection()
 
         self.filter_keyword.blockSignals(True)
         self.filter_keyword.clear()
