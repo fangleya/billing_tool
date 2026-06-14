@@ -15,6 +15,7 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QApplication,
     QStyleFactory,
+    QCheckBox,
 )
 from PyQt5.QtCore import Qt, QDate, QPoint, QTimer
 from PyQt5.QtGui import QFont, QPalette, QColor, QIcon
@@ -122,11 +123,12 @@ class MainWindow(QWidget):
         self.resize(900, 700)
 
         self.transactions = []
-        self.default_categories = ["餐饮", "购物", "交通", "工资", "娱乐", "其他"]
+        self.default_categories = ["餐饮", "购物", "生活", "交通", "工资", "娱乐", "其他"]
         self.default_accounts = ["银行卡", "微信", "支付宝", "现金"]
         self.categories = []
         self.accounts = []
         self._refreshing = False
+        self._resizing_columns = False
         self.default_col_ratios = [0.10, 0.08, 0.08, 0.10, 0.10, 0.10, 0.16, 0.28]
         self.col_ratios = list(self.default_col_ratios)
         self._load_col_ratios()
@@ -188,6 +190,85 @@ class MainWindow(QWidget):
             w.setFixedHeight(32)
             input_layout.addWidget(w)
         layout.addLayout(input_layout)
+
+        # 筛选开关行
+        toggle_layout = QHBoxLayout()
+        self.filter_toggle = QCheckBox("启用筛选")
+        self.filter_toggle.setFixedHeight(32)
+        self.filter_toggle.toggled.connect(self.on_filter_toggled)
+        toggle_layout.addWidget(self.filter_toggle)
+
+        self.btn_clear_filter = QPushButton("清除筛选")
+        self.btn_clear_filter.setFixedHeight(32)
+        self.btn_clear_filter.clicked.connect(self.clear_filters)
+        toggle_layout.addWidget(self.btn_clear_filter)
+        toggle_layout.addStretch()
+        layout.addLayout(toggle_layout)
+
+        # 筛选区域（放在容器中，通过开关控制显示）
+        self.filter_container = QWidget()
+        filter_layout = QHBoxLayout(self.filter_container)
+        filter_layout.setContentsMargins(0, 0, 0, 0)
+
+        filter_layout.addWidget(QLabel("日期:"))
+        self.filter_start_date = QDateEdit(QDate.currentDate().addMonths(-12))
+        self.filter_start_date.setCalendarPopup(True)
+        self.filter_start_date.setFixedHeight(32)
+        self.filter_start_date.dateChanged.connect(self.on_start_date_changed)
+        filter_layout.addWidget(self.filter_start_date)
+
+        filter_layout.addWidget(QLabel("-"))
+        self.filter_end_date = QDateEdit(QDate.currentDate())
+        self.filter_end_date.setCalendarPopup(True)
+        self.filter_end_date.setFixedHeight(32)
+        self.filter_end_date.dateChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.filter_end_date)
+
+        filter_layout.addWidget(QLabel("搜索:"))
+        self.filter_keyword = QLineEdit()
+        self.filter_keyword.setPlaceholderText("关键词")
+        self.filter_keyword.setFixedHeight(32)
+        self.filter_keyword.textChanged.connect(self.on_filter_changed)
+        filter_layout.addWidget(self.filter_keyword)
+
+        filter_layout.addWidget(QLabel("分类:"))
+        self.filter_category = QComboBox()
+        self.filter_category.setFixedHeight(32)
+        self.filter_category.currentIndexChanged.connect(self.on_filter_changed)
+        self._set_combo_item_fonts(self.filter_category)
+        filter_layout.addWidget(self.filter_category)
+
+        filter_layout.addWidget(QLabel("账户:"))
+        self.filter_account = QComboBox()
+        self.filter_account.setFixedHeight(32)
+        self.filter_account.currentIndexChanged.connect(self.on_filter_changed)
+        self._set_combo_item_fonts(self.filter_account)
+        filter_layout.addWidget(self.filter_account)
+
+        filter_layout.addWidget(QLabel("类型:"))
+        self.filter_type = QComboBox()
+        self.filter_type.addItems(["全部", "支出", "收入"])
+        self.filter_type.setFixedHeight(32)
+        self.filter_type.currentIndexChanged.connect(self.on_filter_changed)
+        self._set_combo_item_fonts(self.filter_type)
+        filter_layout.addWidget(self.filter_type)
+
+        filter_layout.addWidget(QLabel("排序:"))
+        self.filter_sort = QComboBox()
+        self.filter_sort.addItems(["默认", "日期 ↑", "日期 ↓", "金额 ↑", "金额 ↓", "分类 ↑", "分类 ↓", "账户 ↑", "账户 ↓"])
+        self.filter_sort.setFixedHeight(32)
+        self.filter_sort.currentIndexChanged.connect(self.on_filter_changed)
+        self._set_combo_item_fonts(self.filter_sort)
+        filter_layout.addWidget(self.filter_sort)
+
+        layout.addWidget(self.filter_container)
+
+        # 初始化筛选下拉框
+        self._update_filter_categories()
+        self._update_filter_accounts()
+
+        # 默认关闭筛选
+        self.filter_container.setVisible(False)
 
         # 表格区域
         self.table = QTableWidget(0, 8)
@@ -293,42 +374,103 @@ class MainWindow(QWidget):
         except ValueError:
             QMessageBox.warning(self, "错误", "请输入合法的金额")
 
+    def get_filtered_transactions(self):
+        """根据当前筛选条件返回 (原始索引, 交易记录) 列表"""
+        # 筛选开关关闭时，直接返回全部交易
+        if not self.filter_toggle.isChecked():
+            return [(i, t) for i, t in enumerate(self.transactions)]
+
+        start_date = self.filter_start_date.date().toString("yyyy-MM-dd")
+        end_date = self.filter_end_date.date().toString("yyyy-MM-dd")
+        keyword = self.filter_keyword.text().strip().lower()
+        category = self.filter_category.currentText()
+        account = self.filter_account.currentText()
+        type_filter = self.filter_type.currentText()
+
+        filtered = []
+        for i, t in enumerate(self.transactions):
+            if t.date < start_date or t.date > end_date:
+                continue
+            if type_filter != "全部" and t.type != type_filter:
+                continue
+            if category and category != "全部分类" and t.category != category:
+                continue
+            if account and account != "全部账户" and t.account != account:
+                continue
+            if keyword:
+                search_in = f"{t.description} {t.tags} {t.note} {t.category} {t.account}".lower()
+                if keyword not in search_in:
+                    continue
+            filtered.append((i, t))
+
+        # 排序
+        sort_text = self.filter_sort.currentText()
+        reverse = False
+        if sort_text == "日期 ↑":
+            key_func = lambda x: x[1].date
+        elif sort_text == "日期 ↓":
+            key_func = lambda x: x[1].date
+            reverse = True
+        elif sort_text == "金额 ↑":
+            key_func = lambda x: x[1].amount
+        elif sort_text == "金额 ↓":
+            key_func = lambda x: x[1].amount
+            reverse = True
+        elif sort_text == "分类 ↑":
+            key_func = lambda x: x[1].category
+        elif sort_text == "分类 ↓":
+            key_func = lambda x: x[1].category
+            reverse = True
+        elif sort_text == "账户 ↑":
+            key_func = lambda x: x[1].account
+        elif sort_text == "账户 ↓":
+            key_func = lambda x: x[1].account
+            reverse = True
+        else:
+            key_func = None
+
+        if key_func:
+            filtered.sort(key=key_func, reverse=reverse)
+
+        return filtered
+
     def refresh_table(self):
         self._refreshing = True
-        header = self.table.horizontalHeader()
-        sort_col = header.sortIndicatorSection()  # type: ignore
-        sort_order = header.sortIndicatorOrder()  # type: ignore
         self.table.setSortingEnabled(False)
         self.table.setRowCount(0)
         income = expense = 0
-        for t in self.transactions:
+        filtered = self.get_filtered_transactions()
+        for _, (orig_idx, t) in enumerate(filtered):
             row = self.table.rowCount()
             self.table.insertRow(row)
             values = [t.date, t.type, t.category, t.description, f"{t.amount:.2f}", t.account, t.tags, t.note]
             for col, val in enumerate(values):
                 item = QTableWidgetItem(val)
                 item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                item.setData(Qt.ItemDataRole.UserRole, row)
+                item.setData(Qt.ItemDataRole.UserRole, orig_idx)
                 self.table.setItem(row, col, item)
             income += t.amount if t.type == "收入" else 0
             expense += t.amount if t.type == "支出" else 0
         self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
         self.table.setSortingEnabled(True)
-        header.setSortIndicator(sort_col, sort_order)  # type: ignore
         self._refreshing = False
 
     def adjust_column_widths(self):
+        self._resizing_columns = True
         total_width = self.table.viewport().width()  # type: ignore
         for i, ratio in enumerate(self.col_ratios):
             self.table.setColumnWidth(i, int(total_width * ratio))
+        self._resizing_columns = False
 
     def on_column_resized(self, index, old_size, new_size):
+        if self._resizing_columns:
+            return
         total = self.table.viewport().width()  # type: ignore
         self.col_ratios = [round(self.table.columnWidth(i) / total, 3) for i in range(8)]
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.adjust_column_widths()
+        QTimer.singleShot(0, self.adjust_column_widths)
 
     def open_context_menu(self, pos: QPoint):
         index = self.table.indexAt(pos)
@@ -454,13 +596,35 @@ class MainWindow(QWidget):
             else:
                 self.cmb_category.addItem(cat)
         self._set_combo_item_fonts(self.cmb_category)
+        self._update_filter_categories()
         self._save_config()
+
+    def _update_filter_categories(self):
+        if not hasattr(self, "filter_category"):
+            return
+        self.filter_category.blockSignals(True)
+        self.filter_category.clear()
+        self.filter_category.addItem("全部分类")
+        self.filter_category.addItems(self.categories)
+        self._set_combo_item_fonts(self.filter_category)
+        self.filter_category.blockSignals(False)
 
     def update_accounts(self):
         self.cmb_account.clear()
         self.cmb_account.addItems(self.accounts)
         self._set_combo_item_fonts(self.cmb_account)
+        self._update_filter_accounts()
         self._save_config()
+
+    def _update_filter_accounts(self):
+        if not hasattr(self, "filter_account"):
+            return
+        self.filter_account.blockSignals(True)
+        self.filter_account.clear()
+        self.filter_account.addItem("全部账户")
+        self.filter_account.addItems(self.accounts)
+        self._set_combo_item_fonts(self.filter_account)
+        self.filter_account.blockSignals(False)
 
     def export_csv(self, checked=False):
         path, _ = QFileDialog.getSaveFileName(self, "导出为 CSV 文件", "账本.csv", "CSV 文件 (*.csv)")
@@ -472,3 +636,52 @@ class MainWindow(QWidget):
             for t in self.transactions:
                 writer.writerow([t.date, t.type, t.category, t.description, t.amount, t.account, t.tags, t.note])
         QMessageBox.information(self, "导出成功", f"数据已导出到：\n{path}")
+
+    def on_filter_changed(self):
+        """筛选条件变化时刷新表格"""
+        self.refresh_table()
+
+    def on_start_date_changed(self, new_date):
+        """开始日期变化时，若超过结束日期则自动调整结束日期"""
+        if new_date > self.filter_end_date.date():
+            self.filter_end_date.blockSignals(True)
+            self.filter_end_date.setDate(new_date)
+            self.filter_end_date.blockSignals(False)
+        self.refresh_table()
+
+    def on_filter_toggled(self, checked):
+        """筛选开关切换"""
+        self.filter_container.setVisible(checked)
+        self.refresh_table()
+
+    def clear_filters(self):
+        """清除所有筛选条件"""
+        self.filter_start_date.blockSignals(True)
+        self.filter_start_date.setDate(QDate.currentDate().addMonths(-12))
+        self.filter_start_date.blockSignals(False)
+
+        self.filter_end_date.blockSignals(True)
+        self.filter_end_date.setDate(QDate.currentDate())
+        self.filter_end_date.blockSignals(False)
+
+        self.filter_keyword.blockSignals(True)
+        self.filter_keyword.clear()
+        self.filter_keyword.blockSignals(False)
+
+        self.filter_category.blockSignals(True)
+        self.filter_category.setCurrentIndex(0)
+        self.filter_category.blockSignals(False)
+
+        self.filter_account.blockSignals(True)
+        self.filter_account.setCurrentIndex(0)
+        self.filter_account.blockSignals(False)
+
+        self.filter_type.blockSignals(True)
+        self.filter_type.setCurrentIndex(0)
+        self.filter_type.blockSignals(False)
+
+        self.filter_sort.blockSignals(True)
+        self.filter_sort.setCurrentIndex(0)
+        self.filter_sort.blockSignals(False)
+
+        self.refresh_table()
