@@ -24,6 +24,7 @@ from windows.category_window import CategoryWindow
 from windows.account_window import AccountWindow
 from windows.edit_window import EditWindow
 from widgets.year_month_picker import YearMonthPicker
+from resource_utils import get_resource_path, get_data_path
 
 
 class MainWindow(QWidget):
@@ -38,7 +39,7 @@ class MainWindow(QWidget):
         QApplication.setPalette(palette)
 
         self.setWindowTitle(" 本地记账工具v1.0")
-        self.setWindowIcon(QIcon(os.path.join("resources", "appicon.ico")))
+        self.setWindowIcon(QIcon(get_resource_path(os.path.join("resources", "appicon.ico"))))
 
         self.setStyleSheet("""
             QWidget {
@@ -275,7 +276,7 @@ class MainWindow(QWidget):
 
     def _load_col_ratios(self):
         try:
-            with open("data/window_state.json", "r", encoding="utf-8") as f:
+            with open(get_data_path("data/window_state.json"), "r", encoding="utf-8") as f:
                 state = json.load(f)
             self.col_ratios = state.get("col_ratios")
         except Exception:
@@ -283,7 +284,7 @@ class MainWindow(QWidget):
 
     def restore_window_state(self):
         try:
-            with open("data/window_state.json", "r", encoding="utf-8") as f:
+            with open(get_data_path("data/window_state.json"), "r", encoding="utf-8") as f:
                 state = json.load(f)
         except Exception:
             state = {}
@@ -300,20 +301,20 @@ class MainWindow(QWidget):
         QTimer.singleShot(0, self.adjust_column_widths)
 
     def closeEvent(self, event):
-        os.makedirs("data", exist_ok=True)
+        get_data_path("data/.keep")  # 确保 data 目录存在
         rect = self.geometry().getRect()
         state = {
             "maximized": self.isMaximized(),
             "geometry": [rect[0], rect[1], rect[2], rect[3]],
             "col_ratios": self.col_ratios,
         }
-        with open("data/window_state.json", "w", encoding="utf-8") as f:
+        with open(get_data_path("data/window_state.json"), "w", encoding="utf-8") as f:
             json.dump(state, f)
         event.accept()
 
     def check_reminders(self):
         try:
-            with open("data/reminder.json", "r", encoding="utf-8") as f:
+            with open(get_data_path("data/reminder.json"), "r", encoding="utf-8") as f:
                 reminders = json.load(f)
         except:
             return
@@ -478,13 +479,13 @@ class MainWindow(QWidget):
         self.edit_win.show()
 
     def save_data(self):
-        os.makedirs("data", exist_ok=True)
-        with open("data/transactions.json", "w", encoding="utf-8") as f:
+        get_data_path("data/.keep")  # 确保 data 目录存在
+        with open(get_data_path("data/transactions.json"), "w", encoding="utf-8") as f:
             json.dump([t.__dict__ for t in self.transactions], f, indent=2, ensure_ascii=False)
 
     def load_data(self):
         try:
-            with open("data/transactions.json", "r", encoding="utf-8") as f:
+            with open(get_data_path("data/transactions.json"), "r", encoding="utf-8") as f:
                 self.transactions = [Transaction(**d) for d in json.load(f)]
         except:
             pass
@@ -508,7 +509,7 @@ class MainWindow(QWidget):
 
     def _load_config(self):
         try:
-            with open("data/config.json", "r", encoding="utf-8") as f:
+            with open(get_data_path("data/config.json"), "r", encoding="utf-8") as f:
                 config = json.load(f)
             self.categories = config.get("categories", self.default_categories)
             self.accounts = config.get("accounts", self.default_accounts)
@@ -518,9 +519,9 @@ class MainWindow(QWidget):
             self._save_config()
 
     def _save_config(self):
-        os.makedirs("data", exist_ok=True)
+        get_data_path("data/.keep")  # 确保 data 目录存在
         config = {"categories": self.categories, "accounts": self.accounts}
-        with open("data/config.json", "w", encoding="utf-8") as f:
+        with open(get_data_path("data/config.json"), "w", encoding="utf-8") as f:
             json.dump(config, f, indent=2, ensure_ascii=False)
 
     def _update_summary(self):
@@ -566,7 +567,7 @@ class MainWindow(QWidget):
     def update_categories(self):
         self.cmb_category.clear()
         for cat in self.categories:
-            icon_path = os.path.join("resources", "icons", f"{cat}.png")
+            icon_path = get_resource_path(os.path.join("resources", "icons", f"{cat}.png"))
             if os.path.exists(icon_path):
                 self.cmb_category.addItem(QIcon(icon_path), cat)
             else:

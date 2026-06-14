@@ -21,6 +21,10 @@ PY_MODULES = [
     "windows/category_window.py",
     "windows/account_window.py",
     "windows/edit_window.py",
+    "resource_utils.py",
+    "widgets/__init__.py",
+    "windows/__init__.py",
+    "models/__init__.py",
 ]
 
 # ── 构建工具（代码里不会 import，打包流程本身需要） ──
