@@ -525,8 +525,9 @@ class MainWindow(QWidget):
             json.dump(config, f, indent=2, ensure_ascii=False)
 
     def _update_summary(self):
-        income = sum(t.amount for t in self.transactions if t.type == "收入")
-        expense = sum(t.amount for t in self.transactions if t.type == "支出")
+        filtered = self.get_filtered_transactions()
+        income = sum(t.amount for _, t in filtered if t.type == "收入")
+        expense = sum(t.amount for _, t in filtered if t.type == "支出")
         self.lbl_summary.setText(f"总收入：¥{income:.2f}，总支出：¥{expense:.2f}，余额：¥{income - expense:.2f}")
 
     def on_cell_changed(self, row, col):

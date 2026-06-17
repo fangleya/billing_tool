@@ -16,7 +16,7 @@ def get_base_path():
     PyInstaller 打包（单文件）：sys._MEIPASS（临时解压目录）
     """
     if getattr(sys, "frozen", False):
-        return sys._MEIPASS
+        return sys._MEIPASS  # type: ignore
     return os.getcwd()
 
 
