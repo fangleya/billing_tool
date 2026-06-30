@@ -14,6 +14,7 @@ from PyQt5.QtWidgets import (
     QFileDialog,
     QApplication,
     QStyleFactory,
+    QDesktopWidget,
 )
 from widgets.styled_combo import StyledComboBox
 from PyQt5.QtCore import Qt, QDate, QPoint, QTimer
@@ -294,11 +295,25 @@ class MainWindow(QWidget):
         else:
             geo = state.get("geometry")
             if geo and len(geo) == 4:
-                self.setGeometry(*geo)
+                x, y, w, h = self._clamp_geometry(*geo)
+                self.setGeometry(x, y, w, h)
             else:
                 self.resize(900, 700)
             self.show()
         QTimer.singleShot(0, self.adjust_column_widths)
+
+    def _clamp_geometry(self, x, y, w, h):
+        """将窗口坐标修正到主屏幕可见区域内，保留宽高"""
+        desktop = QDesktopWidget()
+        # 优先使用主屏幕
+        screen_geo = desktop.availableGeometry(desktop.primaryScreen())
+        # 限制宽高不超过屏幕可用区域
+        w = min(w, screen_geo.width())
+        h = min(h, screen_geo.height())
+        # 将坐标夹到屏幕可用区域内
+        x = max(screen_geo.x(), min(x, screen_geo.x() + screen_geo.width() - 100))
+        y = max(screen_geo.y(), min(y, screen_geo.y() + screen_geo.height() - 100))
+        return x, y, w, h
 
     def closeEvent(self, event):
         get_data_path("data/.keep")  # 确保 data 目录存在
